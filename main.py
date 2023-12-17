@@ -41,14 +41,6 @@ class ImageViewer(QMainWindow):
 
     def open_image(self, file_path):
         pixmap = QPixmap(file_path)
-        # if self.origin == Qt.TopLeftCorner:
-        #     pass  # Do nothing
-        # elif self.origin == Qt.BottomLeftCorner:
-        #     pixmap = pixmap.transformed(QTransform().scale(1, -1))
-        # elif self.origin == Qt.TopRightCorner:
-        #     pixmap = pixmap.transformed(QTransform().scale(-1, 1))
-        # elif self.origin == Qt.BottomRightCorner:
-        #     pixmap = pixmap.transformed(QTransform().scale(-1, -1))
 
         # Add a border around the image
         border_color = Qt.red  # You can change the color if needed
@@ -109,8 +101,6 @@ class ImageViewer(QMainWindow):
         scene_pos = self.view.mapToScene(event.pos())
         self.show_coordinates(scene_pos)
         
-        
-
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MiddleButton:
             self.panning = False
