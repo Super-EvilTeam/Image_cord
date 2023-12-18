@@ -1,7 +1,7 @@
 import sys
-from PyQt5.QtWidgets import QApplication,QToolTip, QGraphicsScene, QGraphicsView, QGraphicsPixmapItem, QMainWindow, QVBoxLayout, QWidget, QLabel, QComboBox
-from PyQt5.QtGui import QPixmap, QImage, QTransform, QPainter, QPen,QCursor
-from PyQt5.QtCore import Qt, QSize,QRect,QTimer
+from PyQt5.QtWidgets import QPushButton, QHBoxLayout,QVBoxLayout, QApplication, QToolTip, QGraphicsScene, QGraphicsView, QGraphicsPixmapItem, QMainWindow, QWidget, QLabel, QComboBox, QFileDialog
+from PyQt5.QtGui import QPixmap, QImage, QTransform, QPainter, QPen, QCursor
+from PyQt5.QtCore import Qt, QSize
 
 import fitz  # PyMuPDF
 
@@ -19,9 +19,11 @@ class ImageViewer(QMainWindow):
 
         self.layout = QVBoxLayout(self.central_widget)
 
-        # QLabel for "Select origin point" text
-        self.origin_label = QLabel("Select origin point", self)
-        self.layout.addWidget(self.origin_label)
+        # Horizontal layout for origin dropdown and "Select File" button
+        origin_file_layout = QHBoxLayout()
+        
+        # Add a title for the set origin dropdown
+        origin_title_label = QLabel("Set Origin:", self)
 
         # Dropdown menu for selecting the origin
         self.origin_dropdown = QComboBox(self)
@@ -30,7 +32,17 @@ class ImageViewer(QMainWindow):
         self.origin_dropdown.addItem("Top Right")
         self.origin_dropdown.addItem("Bottom Right")
         self.origin_dropdown.currentIndexChanged.connect(self.set_selected_origin)
-        self.layout.addWidget(self.origin_dropdown, alignment=Qt.AlignTop)  # Align the dropdown to the top
+        
+
+        # Button to open a file dialog for image or PDF selection
+        self.open_file_button = QPushButton("Select File", self)
+        self.open_file_button.clicked.connect(self.open_file_dialog)
+        origin_file_layout.addWidget(self.open_file_button, alignment=Qt.AlignLeft)
+        origin_file_layout.addWidget(origin_title_label, alignment=Qt.AlignLeft)
+        origin_file_layout.addWidget(self.origin_dropdown,stretch=1, alignment=Qt.AlignLeft)
+
+        self.layout.addLayout(origin_file_layout)
+
 
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene)
@@ -57,19 +69,25 @@ class ImageViewer(QMainWindow):
         # Set dark theme stylesheet
         self.set_stylesheet()
 
-    def showEvent(self, event):
-        # Trigger the initial update when the widget is first shown
-        center_pos = self.view.mapToScene(self.view.viewport().rect().center())
-        self.show_coordinates(center_pos)
-
     def set_stylesheet(self):
         style_sheet = """
             QComboBox {
-            padding: 2px;  /* Adjust padding as needed */
-            max-width: 100px;  /* Set the minimum width for QComboBox */
+                max-width: 100px;  /* Set the minimum width for QComboBox */
+            }
+            QPushButton {
+                max-width: 100px;
             }
             """
         self.setStyleSheet(style_sheet)
+
+    def open_file_dialog(self):
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Image Files (*.png *.jpg *.jpeg *.bmp);;PDF Files (*.pdf);;All Files (*)", options=options)
+        if file_path:
+            if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                self.open_image(file_path)
+            elif file_path.lower().endswith('.pdf'):
+                self.open_pdf(file_path)
 
     def open_image(self, file_path):
         self.Coord_flag = "Image"
@@ -122,12 +140,16 @@ class ImageViewer(QMainWindow):
         self.image_item.setPixmap(pixmap_list[0])
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton: # Check for middle button (scroll wheel) press
+        if event.button() == Qt.LeftButton:  # Check for middle button (scroll wheel) press
             self.panning = True
             self.last_mouse_pos = event.pos()
 
     def mouseMoveEvent(self, event):
-        super().mouseMoveEvent(event)  # Call the base class implementation
+        if self.panning:
+            delta = event.pos() - self.last_mouse_pos
+            self.view.horizontalScrollBar().setValue(self.view.horizontalScrollBar().value() - delta.x())
+            self.view.verticalScrollBar().setValue(self.view.verticalScrollBar().value() - delta.y())
+            self.last_mouse_pos = event.pos()
         scene_pos = self.view.mapToScene(event.pos())
         self.show_coordinates(scene_pos)
 
@@ -170,7 +192,6 @@ class ImageViewer(QMainWindow):
             scene_pos = self.view.mapToScene(self.last_mouse_pos)
             self.show_coordinates(scene_pos)
 
-
     def show_coordinates(self, scene_pos):
         image_rect = self.image_item.pixmap().rect()
         image_width = image_rect.width()
@@ -190,7 +211,7 @@ class ImageViewer(QMainWindow):
             y = image_height - scene_pos.y()
 
         if self.Coord_flag == "Pdf":
-            coordinates_text = f'Co-Ordinates: (X={int(x//2)} Y={int(y//2)})'
+            coordinates_text = f'Co-Ordinates: (X={int(x // 2)} Y={int(y // 2)})'
         else:
             coordinates_text = f'Co-Ordinates: (X={int(x)} Y={int(y)})'
 
@@ -202,20 +223,10 @@ class ImageViewer(QMainWindow):
         # Set the tooltip text at the cursor position
         QToolTip.showText(cursor_pos, coordinates_text, self)
 
-        # Use QTimer to manually hide the tooltip after 5 seconds (5000 milliseconds)
-        QTimer.singleShot(500000, QToolTip.hideText)
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     viewer = ImageViewer()
     viewer.setGeometry(100, 100, 800, 600)
-
-    # Example usage:
-    # file_path = "Images\Sumit Photo.png"
-    # viewer.open_image(file_path)
-
-    file_path = "D:\Learning project\Resume_builder\\resume.pdf"
-    viewer.open_pdf(file_path)
 
     viewer.show()
     sys.exit(app.exec_())
