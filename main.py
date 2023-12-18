@@ -1,7 +1,7 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QGraphicsScene, QGraphicsView, QGraphicsPixmapItem, QMainWindow, QVBoxLayout, QWidget, QLabel, QComboBox
-from PyQt5.QtGui import QPixmap, QImage, QTransform, QPainter, QPen
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtWidgets import QApplication,QToolTip, QGraphicsScene, QGraphicsView, QGraphicsPixmapItem, QMainWindow, QVBoxLayout, QWidget, QLabel, QComboBox
+from PyQt5.QtGui import QPixmap, QImage, QTransform, QPainter, QPen,QCursor
+from PyQt5.QtCore import Qt, QSize,QRect,QTimer
 
 import fitz  # PyMuPDF
 
@@ -56,6 +56,11 @@ class ImageViewer(QMainWindow):
 
         # Set dark theme stylesheet
         self.set_stylesheet()
+
+    def showEvent(self, event):
+        # Trigger the initial update when the widget is first shown
+        center_pos = self.view.mapToScene(self.view.viewport().rect().center())
+        self.show_coordinates(center_pos)
 
     def set_stylesheet(self):
         style_sheet = """
@@ -122,11 +127,7 @@ class ImageViewer(QMainWindow):
             self.last_mouse_pos = event.pos()
 
     def mouseMoveEvent(self, event):
-        if self.panning:
-            delta = event.pos() - self.last_mouse_pos
-            self.view.horizontalScrollBar().setValue(self.view.horizontalScrollBar().value() - delta.x())
-            self.view.verticalScrollBar().setValue(self.view.verticalScrollBar().value() - delta.y())
-            self.last_mouse_pos = event.pos()
+        super().mouseMoveEvent(event)  # Call the base class implementation
         scene_pos = self.view.mapToScene(event.pos())
         self.show_coordinates(scene_pos)
 
@@ -189,9 +190,20 @@ class ImageViewer(QMainWindow):
             y = image_height - scene_pos.y()
 
         if self.Coord_flag == "Pdf":
-            self.coordinates_label.setText(f'Co-Ordinates: (X={int(x//2)} Y={int(y//2)})')
+            coordinates_text = f'Co-Ordinates: (X={int(x//2)} Y={int(y//2)})'
         else:
-            self.coordinates_label.setText(f'Co-Ordinates: (X={int(x)} Y={int(y)})')
+            coordinates_text = f'Co-Ordinates: (X={int(x)} Y={int(y)})'
+
+        self.coordinates_label.setText(coordinates_text)
+
+        # Get global cursor position
+        cursor_pos = QCursor.pos()
+
+        # Set the tooltip text at the cursor position
+        QToolTip.showText(cursor_pos, coordinates_text, self)
+
+        # Use QTimer to manually hide the tooltip after 5 seconds (5000 milliseconds)
+        QTimer.singleShot(500000, QToolTip.hideText)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
